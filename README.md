@@ -184,4 +184,3 @@ If you want to use the USB classifier daemon:
 
 ## Credits
 - Project by QQP Group & contributors
-- See source files for detailed authorship 
