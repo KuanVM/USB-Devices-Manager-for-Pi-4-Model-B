@@ -1,1 +1,0 @@
-# USB-Devices-Manager-for-Pi-4-Model-B
