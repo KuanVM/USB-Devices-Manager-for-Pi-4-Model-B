@@ -3,7 +3,6 @@ import pyudev
 import subprocess
 import logging
 from datetime import datetime
-from dbus_service import start_dbus_service
 from plugin_loader import PluginLoader
 import threading
 import os
