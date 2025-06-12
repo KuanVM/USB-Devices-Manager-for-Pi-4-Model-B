@@ -23,19 +23,23 @@ class USBManagerService(dbus.service.Object):
                          in_signature='', out_signature='aa{sv}')
     def ListDevices(self):
         devices = []
-        for device in self.context.list_devices(subsystem='block'):
+        for device in self.context.list_devices(subsystem='usb'):
             vendor_id = (device.get('ID_VENDOR_ID') or '').lower()
             product_id = (device.get('ID_MODEL_ID') or '').lower()
             vendor_name, product_name = lookup_usb_name(vendor_id, product_id, USB_IDS_PATH)
             devname = device.get('DEVNAME') or ""
-            status = "mounted" if devname and self.is_mounted(devname) else "unmounted"
+            if devname:
+                status = "mounted" if self.is_mounted(devname) else "unmounted"
+            else:
+                status = "connected"
             dev_info = {
                 "vendor_id": vendor_id,
                 "product_id": product_id,
                 "vendor": vendor_name,
                 "product": product_name,
                 "status": status,
-                "serial": str(device.get('ID_SERIAL_SHORT') or "")
+                "serial": str(device.get('ID_SERIAL_SHORT') or ""),
+                "devname": devname
             }
             devices.append(dev_info)
         return devices
