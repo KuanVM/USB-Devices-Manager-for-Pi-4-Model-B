@@ -27,18 +27,23 @@ class USBManagerService(dbus.service.Object):
             vendor_id = (device.get('ID_VENDOR_ID') or '').lower()
             product_id = (device.get('ID_MODEL_ID') or '').lower()
             vendor_name, product_name = lookup_usb_name(vendor_id, product_id, USB_IDS_PATH)
-            devname = device.get('DEVNAME') or ""
-            if devname:
-                status = "mounted" if self.is_mounted(devname) else "unmounted"
-            else:
-                status = "connected"
+            # Tìm thiết bị block con (storage)
+            devname = ""
+            status = "connected"
+            serial = str(device.get('ID_SERIAL_SHORT') or "")
+            for child in device.children:
+                if child.subsystem == 'block' and child.device_node:
+                    devname = child.device_node
+                    serial = str(child.get('ID_SERIAL_SHORT') or serial)
+                    status = "mounted" if self.is_mounted(devname) else "unmounted"
+                    break
             dev_info = {
                 "vendor_id": vendor_id,
                 "product_id": product_id,
                 "vendor": vendor_name,
                 "product": product_name,
                 "status": status,
-                "serial": str(device.get('ID_SERIAL_SHORT') or ""),
+                "serial": serial,
                 "devname": devname
             }
             devices.append(dev_info)
