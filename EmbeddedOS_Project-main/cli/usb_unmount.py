@@ -1,19 +1,13 @@
-#!/usr/bin/env python3
 import sys
-import pyudev
-import subprocess
+import dbus
 
-if len(sys.argv) < 2:
-    print("Usage: usb_unmount.py <serial|devpath>")
+if len(sys.argv) != 2:
+    print("Usage: python3 usb_unmount.py <devname>")
+    print("Ví dụ: python3 usb_unmount.py /dev/sda1")
     sys.exit(1)
 
-serial = sys.argv[1]
-context = pyudev.Context()
-for device in context.list_devices(subsystem='block'):
-    if device.get('ID_SERIAL_SHORT') == serial or device.get('DEVPATH') == serial:
-        dev_node = device.device_node
-        subprocess.run(['umount', dev_node], check=True)
-        print(f"Unmounted {dev_node}")
-        sys.exit(0)
-print("Device not found")
-sys.exit(1)
+devname = sys.argv[1]
+bus = dbus.SystemBus()
+usb_manager = bus.get_object('org.example.USBManager', '/org/example/USBManager')
+result = usb_manager.UnmountDevice(devname, dbus_interface='org.example.USBManager')
+print("Unmount thành công!" if result else "Unmount thất bại!")

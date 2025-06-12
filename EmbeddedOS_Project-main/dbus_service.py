@@ -23,20 +23,21 @@ class USBManagerService(dbus.service.Object):
         self.context = pyudev.Context()
 
     @dbus.service.method("org.example.USBManager",
-                         in_signature='', out_signature='a{sa{sv}}')
+                         in_signature='', out_signature='aa{sv}')
+
     def ListDevices(self):
-        """
-        Trả về danh sách thiết bị USB hiện tại.
-        """
         devices = []
-        for device in self.context.list_devices(subsystem='usb'):
-            dev = {
-                "id": device.get('ID_SERIAL_SHORT') or device.get('DEVPATH'),
-                "name": device.get('ID_MODEL') or device.get('ID_MODEL_ID'),
-                "status": "mounted" if device.get('DEVNAME') and self.is_mounted(device.get('DEVNAME')) else "unmounted",
-                "serial": device.get('ID_SERIAL_SHORT')
+        for device in self.context.list_devices(subsystem='block'):
+            devname = device.get('DEVNAME') or ""
+            status = "mounted" if devname and self.is_mounted(devname) else "unmounted"
+            dev_info = {
+                "id": str(device.get('ID_SERIAL_SHORT') or device.get('DEVPATH') or ""),
+                "name": str(device.get('ID_MODEL') or device.get('ID_MODEL_ID') or ""),
+                "status": status,
+                "serial": str(device.get('ID_SERIAL_SHORT') or ""),
+                "devname": devname
             }
-            devices.append(dev)
+            devices.append(dev_info)
         return devices
 
     def is_mounted(self, devname):
@@ -51,21 +52,25 @@ class USBManagerService(dbus.service.Object):
 
     @dbus.service.method("org.example.USBManager",
                          in_signature='s', out_signature='b')
-    def MountDevice(self, device_id):
-        """
-        Mount thiết bị USB theo device_id.
-        """
-        for device in self.context.list_devices(subsystem='block'):
-            if device.get('ID_SERIAL_SHORT') == device_id or device.get('DEVPATH') == device_id:
-                dev_node = device.device_node
-                mount_point = f"/mnt/usb_{device.get('ID_VENDOR_ID')}_{device.get('ID_MODEL_ID')}"
-                try:
-                    subprocess.run(['mkdir', '-p', mount_point], check=True)
-                    subprocess.run(['mount', dev_node, mount_point], check=True)
-                    return True
-                except Exception:
-                    return False
-        return False
+    def MountDevice(self, devname):
+        mount_point = f"/mnt/usb_{os.path.basename(devname)}"
+        try:
+            subprocess.run(['mkdir', '-p', mount_point], check=True)
+            subprocess.run(['mount', devname, mount_point], check=True)
+            return True
+        except Exception as e:
+            print(f"Mount error: {e}")
+            return False
+    
+    @dbus.service.method("org.example.USBManager",
+                         in_signature='s', out_signature='b')
+    def UnmountDevice(self, devname):
+        try:
+            subprocess.run(['umount', devname], check=True)
+            return True
+        except Exception as e:
+            print(f"Unmount error: {e}")
+            return False
 
     @dbus.service.method("org.example.USBManager",
                          in_signature='s', out_signature='b')

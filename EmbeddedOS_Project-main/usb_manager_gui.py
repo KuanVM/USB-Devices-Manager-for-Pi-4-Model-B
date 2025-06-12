@@ -6,7 +6,8 @@ def get_devices():
     try:
         bus = dbus.SystemBus()
         usb_manager = bus.get_object('org.example.USBManager', '/org/example/USBManager')
-        return usb_manager.ListDevices(dbus_interface='org.example.USBManager')
+        # Chuyển dbus.Dictionary về dict thường nếu cần
+        return [dict(dev) for dev in usb_manager.ListDevices(dbus_interface='org.example.USBManager')]
     except Exception as e:
         messagebox.showerror("Lỗi DBus", f"Không thể kết nối DBus: {e}\nHãy chắc chắn service đang chạy!")
         return []
@@ -19,10 +20,11 @@ def refresh_table(tree):
         return
     for dev in devices:
         tree.insert('', 'end', values=(
-            dev.get('id'),
-            dev.get('name'),
-            dev.get('status'),
-            dev.get('serial')
+            dev.get('id', ''),
+            dev.get('name', ''),
+            dev.get('status', ''),
+            dev.get('serial', ''),
+            dev.get('devname', '')
         ))
 
 def mount_selected(tree):
@@ -30,11 +32,14 @@ def mount_selected(tree):
     if not selected:
         messagebox.showinfo("Thông báo", "Chọn thiết bị để mount")
         return
-    dev_id = tree.item(selected[0])['values'][0]
+    devname = tree.item(selected[0])['values'][4]  # cột thứ 5 là devname
+    if not devname:
+        messagebox.showerror("Lỗi", "Không tìm thấy đường dẫn thiết bị (devname)!")
+        return
     try:
         bus = dbus.SystemBus()
         usb_manager = bus.get_object('org.example.USBManager', '/org/example/USBManager')
-        result = usb_manager.MountDevice(dev_id, dbus_interface='org.example.USBManager')
+        result = usb_manager.MountDevice(devname, dbus_interface='org.example.USBManager')
         messagebox.showinfo("Kết quả", "Mount thành công!" if result else "Mount thất bại!")
     except Exception as e:
         messagebox.showerror("Lỗi DBus", f"Không thể mount: {e}")
@@ -45,11 +50,14 @@ def unmount_selected(tree):
     if not selected:
         messagebox.showinfo("Thông báo", "Chọn thiết bị để unmount")
         return
-    dev_id = tree.item(selected[0])['values'][0]
+    devname = tree.item(selected[0])['values'][4]
+    if not devname:
+        messagebox.showerror("Lỗi", "Không tìm thấy đường dẫn thiết bị (devname)!")
+        return
     try:
         bus = dbus.SystemBus()
         usb_manager = bus.get_object('org.example.USBManager', '/org/example/USBManager')
-        result = usb_manager.UnmountDevice(dev_id, dbus_interface='org.example.USBManager')
+        result = usb_manager.UnmountDevice(devname, dbus_interface='org.example.USBManager')
         messagebox.showinfo("Kết quả", "Unmount thành công!" if result else "Unmount thất bại!")
     except Exception as e:
         messagebox.showerror("Lỗi DBus", f"Không thể unmount: {e}")
@@ -58,8 +66,8 @@ def unmount_selected(tree):
 root = tk.Tk()
 root.title("USB Manager GUI")
 
-tree = ttk.Treeview(root, columns=('ID', 'Tên', 'Trạng thái', 'Serial'), show='headings')
-for col in ('ID', 'Tên', 'Trạng thái', 'Serial'):
+tree = ttk.Treeview(root, columns=('ID', 'Tên', 'Trạng thái', 'Serial', 'devname'), show='headings')
+for col in ('ID', 'Tên', 'Trạng thái', 'Serial', 'devname'):
     tree.heading(col, text=col)
 tree.pack(fill='both', expand=True)
 
