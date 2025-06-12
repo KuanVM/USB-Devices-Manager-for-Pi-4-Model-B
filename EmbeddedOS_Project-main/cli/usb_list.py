@@ -1,12 +1,10 @@
-#!/usr/bin/env python3
-import pyudev
+import dbus
 
-context = pyudev.Context()
-for device in context.list_devices(subsystem='usb'):
-    print(f"Device: {device.device_path}")
-    print(f"  Vendor: {device.get('ID_VENDOR_ID')}")
-    print(f"  Product: {device.get('ID_MODEL_ID')}")
-    print(f"  Serial: {device.get('ID_SERIAL_SHORT')}")
-    print(f"  Class: {device.get('ID_USB_CLASS')}")
-    print(f"  Driver: {device.driver}")
-    print("-" * 50)
+bus = dbus.SystemBus()
+usb_manager = bus.get_object('org.example.USBManager', '/org/example/USBManager')
+devices = usb_manager.ListDevices(dbus_interface='org.example.USBManager')
+
+print(f"{'Vendor':20} {'Product':25} {'VendorID':8} {'ProductID':9} {'Status':10} {'Serial'}")
+for dev in devices:
+    dev = dict(dev)
+    print(f"{dev.get('vendor',''):20} {dev.get('product',''):25} {dev.get('vendor_id',''):8} {dev.get('product_id',''):9} {dev.get('status',''):10} {dev.get('serial','')}")

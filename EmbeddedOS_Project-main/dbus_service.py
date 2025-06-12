@@ -2,7 +2,7 @@
 D-Bus service cho quản lý USB.
 Cung cấp các method: ListDevices, MountDevice, UnmountDevice, GetStatus, SendEvent.
 """
-
+import os
 import dbus
 import dbus.service
 import dbus.mainloop.glib
@@ -10,32 +10,32 @@ from gi.repository import GLib
 import pyudev
 import subprocess
 
-# Giả sử bạn có các hàm hoặc class quản lý thiết bị USB ở nơi khác
-# Ở đây sẽ dùng biến giả lập để minh họa
+from usb_management.usb_ids_lookup import lookup_usb_name
+
+USB_IDS_PATH = os.path.join(os.path.dirname(__file__), 'usb_ids.txt')
 
 class USBManagerService(dbus.service.Object):
-    """
-    D-Bus service cho quản lý USB.
-    """
-
-    def __init__(self, bus, object_path='/org/example/USBManager'):
-        super().__init__(bus, object_path)
+    def __init__(self, bus):
+        super().__init__(bus, '/org/example/USBManager')
         self.context = pyudev.Context()
 
     @dbus.service.method("org.example.USBManager",
                          in_signature='', out_signature='aa{sv}')
-
     def ListDevices(self):
         devices = []
         for device in self.context.list_devices(subsystem='block'):
+            vendor_id = (device.get('ID_VENDOR_ID') or '').lower()
+            product_id = (device.get('ID_MODEL_ID') or '').lower()
+            vendor_name, product_name = lookup_usb_name(vendor_id, product_id, USB_IDS_PATH)
             devname = device.get('DEVNAME') or ""
             status = "mounted" if devname and self.is_mounted(devname) else "unmounted"
             dev_info = {
-                "id": str(device.get('ID_SERIAL_SHORT') or device.get('DEVPATH') or ""),
-                "name": str(device.get('ID_MODEL') or device.get('ID_MODEL_ID') or ""),
+                "vendor_id": vendor_id,
+                "product_id": product_id,
+                "vendor": vendor_name,
+                "product": product_name,
                 "status": status,
-                "serial": str(device.get('ID_SERIAL_SHORT') or ""),
-                "devname": devname
+                "serial": str(device.get('ID_SERIAL_SHORT') or "")
             }
             devices.append(dev_info)
         return devices
@@ -61,7 +61,7 @@ class USBManagerService(dbus.service.Object):
         except Exception as e:
             print(f"Mount error: {e}")
             return False
-    
+
     @dbus.service.method("org.example.USBManager",
                          in_signature='s', out_signature='b')
     def UnmountDevice(self, devname):
@@ -73,38 +73,20 @@ class USBManagerService(dbus.service.Object):
             return False
 
     @dbus.service.method("org.example.USBManager",
-                         in_signature='s', out_signature='b')
-    def UnmountDevice(self, device_id):
+                         in_signature='s', out_signature='s')
+    def GetStatus(self, serial):
         """
-        Unmount thiết bị USB theo device_id.
+        Lấy trạng thái thiết bị USB theo serial.
         """
         for device in self.context.list_devices(subsystem='block'):
-            if device.get('ID_SERIAL_SHORT') == device_id or device.get('DEVPATH') == device_id:
-                dev_node = device.device_node
-                try:
-                    subprocess.run(['umount', dev_node], check=True)
-                    return True
-                except Exception:
-                    return False
-        return False
-
-    @dbus.service.method("org.example.USBManager",
-                         in_signature='s', out_signature='s')
-    def GetStatus(self, device_id):
-        """
-        Lấy trạng thái thiết bị USB.
-        """
-        for dev in self.device_list:
-            if dev["id"] == device_id:
-                return dev["status"]
+            if (device.get('ID_SERIAL_SHORT') or "") == serial:
+                devname = device.get('DEVNAME') or ""
+                return "mounted" if devname and self.is_mounted(devname) else "unmounted"
         return "unknown"
 
     @dbus.service.signal("org.example.USBManager",
                          signature='ss')
     def SendEvent(self, event_type, data):
-        """
-        Gửi sự kiện tới client (signal).
-        """
         pass  # Signal sẽ được gửi khi gọi hàm này
 
 def main():
@@ -118,9 +100,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-"""
-Hướng dẫn sử dụng:
-- Chạy trực tiếp: python3 usb_management/dbus_service.py
-- Hoặc tạo file .service cho systemd để tự động khởi động cùng hệ thống.
-"""
