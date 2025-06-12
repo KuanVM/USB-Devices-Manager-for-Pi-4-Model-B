@@ -78,7 +78,7 @@ Bạn cần khởi động dịch vụ DBus trước khi sử dụng GUI hoặc 
 **Chạy trực tiếp (testing):**
 ```bash
 cd usb_management
-python3 dbus_service.py
+sudo python3 dbus_service.py
 ```
 - Dịch vụ sẽ chạy nền, quản lý các yêu cầu liên quan đến USB.
 
@@ -208,4 +208,4 @@ Nếu bạn muốn sử dụng daemon phân loại USB:
 ---
 
 ## Tác giả & Cộng tác viên
-- Dự án bởi QQP Group & các cộng tác viên
+- Dự án bởi Nhóm 13
