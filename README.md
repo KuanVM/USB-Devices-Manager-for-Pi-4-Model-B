@@ -137,7 +137,6 @@ make
 sudo insmod usb_audio_driver.ko
 sudo insmod usb_storage_driver.ko
 sudo insmod usb_hid_driver.ko
-sudo insmod usb_mouse_driver.ko
 sudo insmod usb_video_driver.ko
 ```
 **Kiểm tra log kernel:**
